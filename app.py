@@ -3,7 +3,6 @@ import re
 import joblib
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
-from tensorflow.keras.models import load_model
 import nltk
 
 # Download stopwords if not already present
@@ -12,8 +11,8 @@ nltk.download('stopwords')
 app = Flask(__name__)
 
 # Load pre-trained model and vectorizer
-model = load_model('model.keras')
-vectorizer = joblib.load('tfidf_vectorizer.pkl')
+model = joblib.load('model.pkl')  # Your pre-trained model
+vectorizer = joblib.load('tfidf_vectorizer.pkl')  # Vectorizer for text preprocessing
 
 # Initialize the stemmer
 port_stem = PorterStemmer()
@@ -55,14 +54,13 @@ def predict():
     vectorized_content = vectorizer.transform([stemmed_content])
 
     # Predict using the pre-trained model
-    prediction = model.predict(vectorized_content.toarray())
-    confidence = float(prediction[0][0])
-    result = 'Real' if confidence < 0.5 else 'Fake'
+    prediction = model.predict(vectorized_content)[0]  # Single prediction value
+    confidence_scores = model.predict_proba(vectorized_content)  # Get confidence scores
+    confidence = confidence_scores[0][1] if prediction == 1 else confidence_scores[0][0]
 
-    # Adjust confidence to always be between 0.5 and 1
-    adjusted_confidence = confidence if result == 'Fake' else 1 - confidence
+    result = 'Fake' if prediction == 1 else 'Real'
 
-    return jsonify({'prediction': result, 'confidence': round(adjusted_confidence, 2)})
+    return jsonify({'prediction': result, 'confidence': round(confidence, 2)})
 
 if __name__ == '__main__':
     app.run(debug=True)
